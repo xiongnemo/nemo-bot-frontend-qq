@@ -1,0 +1,41 @@
+{
+    "nemo-backend": {
+        "endpoint": "http://127.0.0.1:42163/bot",
+        "superusers": [
+            "3240295516",
+            "1527445228"
+        ]
+    },
+    "nemo-frontend": {
+        "listen-on": "0.0.0.0",
+        "port": "27468"
+    },
+    "proxies": {
+        "default": {
+            "http": "http://127.0.0.1:11086",
+            "https": "http://127.0.0.1:11086"
+        }
+    },
+    "blacklist": [
+        "819305740",
+        "460834473"
+    ],
+    "alias": {
+        "翻译": "g 把以下的单词或者句子翻译为中文。如果内容是一个单词的话，像字典一样给出详细的解释；如果是句子的话，就只做全文翻译，不需要给出难以理解的词汇的详细解释：",
+        "杀": "nemonemo shell taskkill.exe /F /IM",
+        "看看罕见": "nemonemo sp assets/hanjian.jpeg",
+        "看看杂鱼": "nemonemo sp assets/hanjian.jpeg",
+        "老八": "send_random_asset_img 八",
+        "外股": "雅虎",
+        "ARC": "coin arc",
+        "AIN": "coin AIN",
+        "ETH": "coin ETH",
+        "RHEA": "coin RHEA",
+        "HYPE": "coin HYPE",
+        "nm": "nemonemo"
+    },
+    "superusers": [
+        "3240295516",
+        "1527445228"
+    ]
+}
