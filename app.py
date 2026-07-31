@@ -148,5 +148,5 @@ if __name__ == "__main__":
         
     import uvicorn
     host = frontend_config.get("frontend", {}).get("host", "0.0.0.0")
-    port = frontend_config.get("frontend", {}).get("port", 42165)
+    port = frontend_config.get("frontend", {}).get("port", 27468)
     uvicorn.run("app:app", host=host, port=port)
