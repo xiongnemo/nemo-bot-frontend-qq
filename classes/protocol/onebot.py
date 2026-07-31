@@ -65,54 +65,22 @@ class OnebotEvent:
         self.self_id: int = raw_event_data['self_id']
         self.__dict__ = raw_event_data
 
-import requests
+import httpx
 
-def get_message_by_id(message_id: str) -> str:
+def get_message_by_id(message_id: str) -> dict:
     '''
     https://llonebot.apifox.cn/api-147574979
     POST /get_msg
-
-    returns:
-    {
-        "status": "ok",
-        "retcode": 0,
-        "data": {
-            "self_id": 721011692,
-            "user_id": 721011692,
-            "time": 1729679125,
-            "message_id": 966671988,
-            "real_id": 966671988,
-            "message_seq": 966671988,
-            "message_type": "group",
-            "sender": {
-                "user_id": 721011692,
-                "nickname": "--",
-                "card": "",
-                "role": "owner",
-                "title": ""
-            },
-            "raw_message": "您好",
-            "font": 14,
-            "sub_type": "normal",
-            "message": [
-                {
-                    "type": "text",
-                    "data": {
-                        "text": "您好"
-                    }
-                }
-            ],
-            "message_format": "array",
-            "post_type": "message_sent",
-            "group_id": 860105388
-        },
-        "message": "",
-        "wording": ""
-    }
     '''
-    return requests.post(f'http://127.0.0.1:5700/get_msg', json={
-        "message_id": message_id
-    }).json()['data']
+    try:
+        response = httpx.post(f'http://127.0.0.1:5700/get_msg', json={
+            "message_id": message_id
+        }, timeout=2.0)
+        return response.json().get('data', {})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to fetch message {message_id}: {e}")
+        return {}
 
 class OnebotMessage:
     '''

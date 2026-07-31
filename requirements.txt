@@ -1,3 +1,0 @@
-Flask
-websocket-client
-bs4

@@ -4,7 +4,6 @@ from .message_context import MessageContext
 from .message_request import MessageRequest
 from .errors import MessageParsingError
 
-import requests
 
 class Message:
     def __init__(self, message: dict) -> None:
