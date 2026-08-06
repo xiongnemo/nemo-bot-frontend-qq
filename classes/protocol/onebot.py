@@ -82,6 +82,17 @@ def get_message_by_id(message_id: str) -> dict:
         logging.getLogger(__name__).warning(f"Failed to fetch message {message_id}: {e}")
         return {}
 
+def get_group_info(group_id: str) -> dict:
+    try:
+        response = httpx.post(f'http://127.0.0.1:5700/get_group_info', json={
+            "group_id": int(group_id)
+        }, timeout=2.0)
+        return response.json().get('data', {})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to fetch group info {group_id}: {e}")
+        return {}
+
 class OnebotMessage:
     '''
     https://whitechi73.github.io/OpenShamrock/event/message.html#消息事件
@@ -95,7 +106,12 @@ class OnebotMessage:
         self.message_id: str = str(event.__dict__['message_id'])
         self.message: str = event.__dict__['message']
         self.raw_message: str = event.__dict__['message']
-        self.user_name: str = str(event.__dict__.get('sender', {}).get('nickname', ''))
+        sender = event.__dict__.get('sender', {})
+        self.user_name: str = str(sender.get('card') or sender.get('nickname', ''))
+        self.group_name: str = ""
+        if self.group_id:
+            ginfo = get_group_info(self.group_id)
+            self.group_name = ginfo.get("group_name", "")
         # 获取回复消息
         # [{'type': 'reply', 'data': {'id': '1297990874'}}, {'type': 'text', 'data': {'text': 'g 这上面写了什么'}}]
         reply = [i for i in self.message if i['type'] == 'reply']
@@ -137,8 +153,23 @@ class OnebotMessage:
 
     @property
     def _text(self) -> str:
-        '''将所有文字消息段拼接成字符串'''
-        return ' '.join([segement['data']['text'] for segement in self.message if segement['type'] == 'text']).lstrip()
+        '''将所有文字消息段和AT拼接成字符串'''
+        parts = []
+        for segment in self.message:
+            if type(segment) is not dict:
+                continue
+            if segment['type'] == 'text':
+                parts.append(segment['data']['text'])
+            elif segment['type'] == 'at':
+                name = segment['data'].get('name')
+                qq = segment['data'].get('qq')
+                if name:
+                    parts.append(f"@{name} ")
+                elif str(qq) != "all":
+                    parts.append(f"@{qq} ")
+                else:
+                    parts.append("@全体成员 ")
+        return ''.join(parts).lstrip()
     
     @property
     def call_by_intension(self) -> bool:

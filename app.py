@@ -32,6 +32,7 @@ async def dispatch_to_backend(message, frontend: str):
         "frontend": frontend,
         "context": {
             "group_id": str(getattr(message, "group_id", "")),
+            "group_name": str(getattr(message, "group_name", "")),
             "user_id": str(getattr(message, "user_id", "")),
             "user_name": str(getattr(message, "user_name", getattr(message, "nickname", ""))),
             "message_id": str(getattr(message, "message_id", "")),
