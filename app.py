@@ -82,6 +82,7 @@ async def bot_satori(request: Request):
         if satori_message.self_id == satori_message.user_id:
             return JSONResponse(status_code=200, content={"msg": "Self"})
             
+        logger.info(f"\n{satori_message}")
         await dispatch_to_backend(satori_message, 'satori_http')
         return JSONResponse(status_code=200, content={"msg": "Bot acknowledged."})
         
@@ -114,6 +115,7 @@ async def bot_onebot(request: Request):
         if onebot_message.self_id == onebot_message.user_id:
             return JSONResponse(status_code=200, content={"msg": "Self"})
             
+        logger.info(f"\n{onebot_message}")
         await dispatch_to_backend(onebot_message, 'onebot')
         return JSONResponse(status_code=200, content={"msg": "Bot acknowledged."})
         
@@ -133,6 +135,7 @@ async def bot_cqhttp(request: Request):
         if cqhttp_message.self_id == cqhttp_message.user_id:
             return JSONResponse(status_code=200, content={"msg": "Self"})
             
+        logger.info(f"\n{cqhttp_message}")
         await dispatch_to_backend(cqhttp_message, 'cqhttp')
         return JSONResponse(status_code=200, content={"msg": "Bot acknowledged."})
         
