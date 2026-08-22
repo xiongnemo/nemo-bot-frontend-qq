@@ -39,7 +39,7 @@ async def dispatch_to_backend(message, frontend: str):
             "self_id": str(getattr(message, "self_id", "")),
             "ated": getattr(message, "call_by_intension", getattr(message, "ated", False)),
             "avatar_info": frontend_config.get("avatar_info", "头像是卡比，似乎和另外一个 bot 是镜像，但可惜它已经寄了"),
-            "avatar_photo": frontend_config.get("avatar_photo", "assets/marshmallow.png"),
+            "avatar_photo": frontend_config.get("avatar_photo", "assets/qq_avatar.jpg"),
             "frontend_system_info": f"nemo-bot-frontend-qq ({frontend}) by nemo, 0.2.0\n由 Python {__import__('platform').python_version()} 所执行, \n运行在节点 {__import__('platform').node()}, \n由 {__import__('platform').platform()} 所承载。"
         },
         "request": {
