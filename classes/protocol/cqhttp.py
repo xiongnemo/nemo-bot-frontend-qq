@@ -1,5 +1,26 @@
 from classes.errors import MessageParsingError
 from typing import List
+import logging
+import httpx
+
+logger = logging.getLogger(__name__)
+
+def get_group_file_url(group_id: str, file_id: str) -> str:
+    '''Fetch download URL for a group file via CQHTTP / OneBot HTTP API.'''
+    try:
+        response = httpx.post('http://127.0.0.1:5700/get_group_file_url', json={
+            "group_id": int(group_id),
+            "file_id": file_id
+        }, timeout=5.0)
+        data = response.json().get('data', {})
+        if data and isinstance(data, dict):
+            url = data.get('url', '')
+            if url:
+                logger.info(f"[CQHTTP File] Resolved group file URL for {file_id}: {url[:100]}...")
+            return url
+    except Exception as e:
+        logger.warning(f"[CQHTTP File] Failed to get group file url for {file_id}: {e}")
+    return ''
 
 class GoCqhttpEvent:
     '''
@@ -30,6 +51,43 @@ class GoCqhttpMessage:
         self.imgs = [attrs['data']['url'] for attrs in self.parsed_cqcodes if attrs['type'] == 'image' and 'url' in attrs['data']]
         # https://multimedia.nt.qq.com.cn should be http://multimedia.nt.qq.com.cn
         self.imgs = [i.replace('https://multimedia.nt.qq.com.cn', 'http://multimedia.nt.qq.com.cn').replace('https://gchat.qpic.cn', 'http://gchat.qpic.cn') for i in self.imgs]
+        self.files = []
+        for attrs in self.parsed_cqcodes:
+            if attrs['type'] == 'file':
+                data = attrs.get('data', {})
+                raw_file = str(data.get('file') or '').strip()
+                file_id = str(data.get('id') or data.get('file_id') or raw_file or '')
+                file_name = str(data.get('name') or data.get('file_name') or '').strip()
+                if not file_name:
+                    if raw_file and not raw_file.startswith(('/', '\\', 'file://')):
+                        file_name = raw_file
+                    elif file_id and not file_id.startswith(('/', '\\', 'file://')):
+                        file_name = file_id
+                    else:
+                        file_name = "unknown_file"
+
+                try:
+                    file_size = int(data.get('size') or data.get('file_size') or 0)
+                except (ValueError, TypeError):
+                    file_size = 0
+
+                url = str(data.get('url') or '').strip()
+                if not url and self.group_id and file_id:
+                    url = get_group_file_url(self.group_id, file_id)
+
+                path = str(raw_file if raw_file.startswith(('/', '\\', 'file://')) else '')
+
+                logger.info(
+                    f"[CQHTTP File] Parsed file segment: name='{file_name}', size={file_size} bytes, id='{file_id}', has_url={'YES' if url else 'NO'}, has_path={'YES' if path else 'NO'}"
+                )
+
+                self.files.append({
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "file_size": file_size,
+                    "url": url,
+                    "path": path,
+                })
 
     def __str__(self) -> str:
         return f'''===

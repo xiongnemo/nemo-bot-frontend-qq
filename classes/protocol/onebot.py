@@ -91,7 +91,25 @@ def get_group_info(group_id: str) -> dict:
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning(f"Failed to fetch group info {group_id}: {e}")
-        return {}
+def get_group_file_url(group_id: str, file_id: str) -> str:
+    '''
+    Fetch download URL for a group file via OneBot / LLOneBot HTTP API.
+    POST /get_group_file_url
+    '''
+    try:
+        response = httpx.post('http://127.0.0.1:5700/get_group_file_url', json={
+            "group_id": int(group_id),
+            "file_id": file_id
+        }, timeout=5.0)
+        data = response.json().get('data', {})
+        if data and isinstance(data, dict):
+            url = data.get('url', '')
+            if url:
+                logger.info(f"[OneBot File] Resolved group file URL for {file_id}: {url[:100]}...")
+            return url
+    except Exception as e:
+        logger.warning(f"[OneBot File] Failed to get group file url for {file_id}: {e}")
+    return ''
 
 class OnebotMessage:
     '''
@@ -138,6 +156,46 @@ class OnebotMessage:
         # https://multimedia.nt.qq.com.cn should be http://multimedia.nt.qq.com.cn
         # https://gchat.qpic.cn should be http://gchat.qpic.cn
         self.imgs = [i.replace('https://multimedia.nt.qq.com.cn', 'http://multimedia.nt.qq.com.cn').replace('https://gchat.qpic.cn', 'http://gchat.qpic.cn') for i in self.imgs]
+        self.files = []
+        for seg in self.message:
+            if isinstance(seg, dict) and seg.get("type") == "file":
+                fdata = seg.get("data", {})
+                raw_file = str(fdata.get("file") or "").strip()
+                file_id = str(fdata.get("file_id") or fdata.get("id") or raw_file or "")
+
+                # Determine file_name (in LLOneBot/OneBot, 'file' often contains the filename like 'paper.pdf')
+                file_name = str(fdata.get("file_name") or fdata.get("name") or "").strip()
+                if not file_name:
+                    if raw_file and not raw_file.startswith(("/", "\\", "file://")):
+                        file_name = raw_file
+                    elif file_id and not file_id.startswith(("/", "\\", "file://")):
+                        file_name = file_id
+                    else:
+                        file_name = "unknown_file"
+
+                try:
+                    file_size = int(fdata.get("file_size") or fdata.get("size") or 0)
+                except (ValueError, TypeError):
+                    file_size = 0
+
+                url = str(fdata.get("url") or "").strip()
+                # If url is missing and this is a group file, query LLOneBot/OneBot API
+                if not url and self.group_id and file_id:
+                    url = get_group_file_url(self.group_id, file_id)
+
+                path = str(raw_file if raw_file.startswith(("/", "\\", "file://")) else "")
+
+                logger.info(
+                    f"[OneBot File] Parsed file segment: name='{file_name}', size={file_size} bytes, id='{file_id}', has_url={'YES' if url else 'NO'}, has_path={'YES' if path else 'NO'}"
+                )
+
+                self.files.append({
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "file_size": file_size,
+                    "url": url,
+                    "path": path,
+                })
         self.text = self._text
 
     def __str__(self) -> str:

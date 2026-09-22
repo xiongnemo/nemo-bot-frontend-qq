@@ -46,6 +46,7 @@ async def dispatch_to_backend(message, frontend: str):
             "command": "",
             "args": getattr(message, "text", ""),
             "imgs": getattr(message, "imgs", []),
+            "files": getattr(message, "files", []),
             "raw_message": getattr(message, "raw_message", "")
         }
     }
