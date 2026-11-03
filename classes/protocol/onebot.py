@@ -1,5 +1,7 @@
 from ..errors import MessageParsingError
 import logging
+import json
+import re
 logger = logging.getLogger(__name__)
 
 class MessageSegement:
@@ -156,6 +158,34 @@ class OnebotMessage:
         # https://multimedia.nt.qq.com.cn should be http://multimedia.nt.qq.com.cn
         # https://gchat.qpic.cn should be http://gchat.qpic.cn
         self.imgs = [i.replace('https://multimedia.nt.qq.com.cn', 'http://multimedia.nt.qq.com.cn').replace('https://gchat.qpic.cn', 'http://gchat.qpic.cn') for i in self.imgs]
+        for seg in self.message:
+            if not isinstance(seg, dict):
+                continue
+            stype = seg.get('type')
+            sdata = seg.get('data', {})
+            if stype == 'json':
+                try:
+                    raw_data = sdata.get('data', '')
+                    jdata = json.loads(raw_data) if isinstance(raw_data, str) else (raw_data or {})
+                    meta = jdata.get('meta', {})
+                    for k, v in meta.items():
+                        if isinstance(v, dict):
+                            preview = (v.get('preview') or v.get('cover') or '').strip()
+                            if preview and preview not in self.imgs:
+                                self.imgs.append(preview)
+                                break
+                except Exception:
+                    pass
+            elif stype == 'xml':
+                try:
+                    raw_xml = sdata.get('data', '')
+                    cover_m = re.search(r'(?:cover|preview)="([^"]+)"', raw_xml)
+                    if cover_m:
+                        cover_url = cover_m.group(1).strip()
+                        if cover_url and cover_url not in self.imgs:
+                            self.imgs.append(cover_url)
+                except Exception:
+                    pass
         self.files = []
         for seg in self.message:
             if isinstance(seg, dict) and seg.get("type") == "file":
@@ -211,22 +241,64 @@ class OnebotMessage:
 
     @property
     def _text(self) -> str:
-        '''将所有文字消息段和AT拼接成字符串'''
+        '''将所有文字消息段、AT、以及卡片/小程序解析拼接成字符串'''
         parts = []
         for segment in self.message:
             if type(segment) is not dict:
                 continue
-            if segment['type'] == 'text':
-                parts.append(segment['data']['text'])
-            elif segment['type'] == 'at':
-                name = segment['data'].get('name')
-                qq = segment['data'].get('qq')
+            stype = segment.get('type')
+            sdata = segment.get('data', {})
+            if stype == 'text':
+                parts.append(sdata.get('text', ''))
+            elif stype == 'at':
+                name = sdata.get('name')
+                qq = sdata.get('qq')
                 if name:
                     parts.append(f"@{name} ")
                 elif str(qq) != "all":
                     parts.append(f"@{qq} ")
                 else:
                     parts.append("@全体成员 ")
+            elif stype == 'json':
+                try:
+                    raw_data = sdata.get('data', '')
+                    jdata = json.loads(raw_data) if isinstance(raw_data, str) else (raw_data or {})
+                    prompt = (jdata.get('prompt') or '').strip()
+                    meta = jdata.get('meta', {})
+                    title = ""
+                    desc = ""
+                    url = ""
+                    for k, v in meta.items():
+                        if isinstance(v, dict):
+                            title = (v.get('title') or '').strip()
+                            desc = (v.get('desc') or '').strip()
+                            url = (v.get('qqdocurl') or v.get('jumpUrl') or v.get('url') or '').strip()
+                            if title or url:
+                                break
+                    card_title = desc or title or prompt or "小程序/卡片分享"
+                    if prompt.startswith("[") and "]" in prompt:
+                        tag = prompt[:prompt.index("]") + 1]
+                    else:
+                        tag = "[小程序分享]"
+                    body = f"{tag} {card_title}"
+                    if url:
+                        body += f" 链接: {url}"
+                    parts.append(body)
+                except Exception as e:
+                    logger.debug(f"[OneBot] Error parsing json segment: {e}")
+            elif stype == 'xml':
+                try:
+                    raw_xml = sdata.get('data', '')
+                    title_m = re.search(r"<title[^>]*>(.*?)</title>", raw_xml)
+                    url_m = re.search(r'url="([^"]+)"', raw_xml)
+                    title = title_m.group(1).strip() if title_m else "XML卡片分享"
+                    url = url_m.group(1).strip() if url_m else ""
+                    body = f"[XML卡片] {title}"
+                    if url:
+                        body += f" 链接: {url}"
+                    parts.append(body)
+                except Exception as e:
+                    logger.debug(f"[OneBot] Error parsing xml segment: {e}")
         return ''.join(parts).lstrip()
     
     @property
